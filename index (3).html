@@ -1,0 +1,1015 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Family Piggy Bank</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        .animate-pulse {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-gradient-to-br from-pink-100 via-purple-100 to-blue-100 m-0 p-0">
+    <div id="app" class="min-h-screen"></div>
+
+    <script>
+        // SVG Icons as strings
+        const icons = {
+            piggyBank: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 5c-1.5 0-2.8 1.4-3 2-3.5-1.5-11-.3-11 5 0 1.8 0 3 2 4.5V20h4v-2h3v2h4v-4c1-.5 1.7-1 2-2h2v-4h-2c0-1-.5-1.5-1-2h0V5z"/><path d="M2 9v1c0 1.1.9 2 2 2h1"/><path d="M16 11h0"/></svg>',
+            plus: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
+            minus: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>',
+            wallet: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>',
+            lock: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>',
+            eye: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>',
+            eyeOff: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>',
+            user: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
+            settings: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 6v6m5.2-13.2l-4.2 4.2m-1 1l-4.2 4.2M23 12h-6m-6 0H1m18.2 5.2l-4.2-4.2m-1-1l-4.2-4.2"/></svg>'
+        };
+
+        // State
+        let state = {
+            kid1Balance: 0,
+            kid2Balance: 0,
+            kid1Name: '',
+            kid2Name: '',
+            transactions: [],
+            parentCode: '',
+            kid1Code: '',
+            kid2Code: '',
+            setupMode: false,
+            showAuth: false,
+            authType: '',
+            selectedKid: null, // 1 or 2
+            loading: true,
+            activeWithdrawal: null,
+            showQuickAdd: false,
+            quickAddAmounts: [5, 10, 20, 50, 100],
+            showChangeCode: false,
+            changeCodeFor: '', // 'parent', 'kid1', or 'kid2'
+            showSettingsMenu: false,
+            form: {
+                amount: '',
+                reason: '',
+                code: '',
+                showCode: false,
+                tempParentCode: '',
+                confirmParentCode: '',
+                tempKid1Code: '',
+                confirmKid1Code: '',
+                tempKid2Code: '',
+                confirmKid2Code: '',
+                tempKid1Name: '',
+                tempKid2Name: '',
+                error: '',
+                oldCode: '',
+                newCode: '',
+                confirmNewCode: '',
+                showOldCode: false,
+                showNewCode: false
+            }
+        };
+
+        // Storage functions
+        async function loadData() {
+            try {
+                const kid1BalanceResult = localStorage.getItem('piggy_kid1_balance');
+                if (kid1BalanceResult) {
+                    state.kid1Balance = parseFloat(kid1BalanceResult);
+                }
+
+                const kid2BalanceResult = localStorage.getItem('piggy_kid2_balance');
+                if (kid2BalanceResult) {
+                    state.kid2Balance = parseFloat(kid2BalanceResult);
+                }
+
+                const txResult = localStorage.getItem('piggy_transactions');
+                if (txResult) {
+                    state.transactions = JSON.parse(txResult);
+                }
+
+                const codesResult = localStorage.getItem('piggy_codes');
+                if (codesResult) {
+                    const codes = JSON.parse(codesResult);
+                    state.parentCode = codes.parent;
+                    state.kid1Code = codes.kid1;
+                    state.kid2Code = codes.kid2;
+                    state.kid1Name = codes.kid1Name;
+                    state.kid2Name = codes.kid2Name;
+                } else {
+                    state.setupMode = true;
+                }
+
+                const activeResult = localStorage.getItem('active_withdrawal');
+                if (activeResult) {
+                    state.activeWithdrawal = JSON.parse(activeResult);
+                }
+            } catch (error) {
+                console.log('First time setup');
+                state.setupMode = true;
+            } finally {
+                state.loading = false;
+                render();
+            }
+        }
+
+        async function saveData(newKid1Balance, newKid2Balance, newTransactions) {
+            try {
+                localStorage.setItem('piggy_kid1_balance', newKid1Balance.toString());
+                localStorage.setItem('piggy_kid2_balance', newKid2Balance.toString());
+                localStorage.setItem('piggy_transactions', JSON.stringify(newTransactions));
+            } catch (error) {
+                console.error('Error saving data:', error);
+            }
+        }
+
+        async function saveCodes(parent, kid1, kid2, kid1Name, kid2Name) {
+            try {
+                localStorage.setItem('piggy_codes', JSON.stringify({ parent, kid1, kid2, kid1Name, kid2Name }));
+            } catch (error) {
+                console.error('Error saving codes:', error);
+            }
+        }
+
+        // Poll for changes every 2 seconds (for multi-device sync)
+        setInterval(async () => {
+            if (state.setupMode || state.loading) return;
+            
+            try {
+                const kid1BalanceResult = localStorage.getItem('piggy_kid1_balance');
+                if (kid1BalanceResult) {
+                    const newBalance = parseFloat(kid1BalanceResult);
+                    if (newBalance !== state.kid1Balance) {
+                        state.kid1Balance = newBalance;
+                        render();
+                    }
+                }
+
+                const kid2BalanceResult = localStorage.getItem('piggy_kid2_balance');
+                if (kid2BalanceResult) {
+                    const newBalance = parseFloat(kid2BalanceResult);
+                    if (newBalance !== state.kid2Balance) {
+                        state.kid2Balance = newBalance;
+                        render();
+                    }
+                }
+
+                const txResult = localStorage.getItem('piggy_transactions');
+                if (txResult) {
+                    const newTransactions = JSON.parse(txResult);
+                    if (JSON.stringify(newTransactions) !== JSON.stringify(state.transactions)) {
+                        state.transactions = newTransactions;
+                        render();
+                    }
+                }
+
+                const activeResult = localStorage.getItem('active_withdrawal');
+                if (activeResult) {
+                    const newActive = JSON.parse(activeResult);
+                    if (JSON.stringify(newActive) !== JSON.stringify(state.activeWithdrawal)) {
+                        state.activeWithdrawal = newActive;
+                        render();
+                    }
+                }
+            } catch (error) {
+                if (state.activeWithdrawal) {
+                    state.activeWithdrawal = null;
+                    render();
+                }
+            }
+        }, 2000);
+
+        // Actions
+        function handleSetupCodes() {
+            const { tempParentCode, confirmParentCode, tempKid1Code, confirmKid1Code, tempKid2Code, confirmKid2Code, tempKid1Name, tempKid2Name } = state.form;
+            
+            if (!tempParentCode || !tempKid1Code || !tempKid2Code || !confirmParentCode || !confirmKid1Code || !confirmKid2Code || !tempKid1Name || !tempKid2Name) {
+                state.form.error = 'Please fill in all fields';
+                render();
+                return;
+            }
+            if (tempParentCode.length < 4 || tempKid1Code.length < 4 || tempKid2Code.length < 4) {
+                state.form.error = 'Codes must be at least 4 characters';
+                render();
+                return;
+            }
+            if (tempParentCode !== confirmParentCode) {
+                state.form.error = 'Parent codes do not match';
+                render();
+                return;
+            }
+            if (tempKid1Code !== confirmKid1Code) {
+                state.form.error = 'Kid 1 codes do not match';
+                render();
+                return;
+            }
+            if (tempKid2Code !== confirmKid2Code) {
+                state.form.error = 'Kid 2 codes do not match';
+                render();
+                return;
+            }
+            
+            state.parentCode = tempParentCode;
+            state.kid1Code = tempKid1Code;
+            state.kid2Code = tempKid2Code;
+            state.kid1Name = tempKid1Name;
+            state.kid2Name = tempKid2Name;
+            saveCodes(tempParentCode, tempKid1Code, tempKid2Code, tempKid1Name, tempKid2Name);
+            state.setupMode = false;
+            state.form.error = '';
+            render();
+        }
+
+        async function handleAuthSubmit() {
+            state.form.error = '';
+            
+            const amountNum = parseFloat(state.form.amount);
+            if (isNaN(amountNum) || amountNum <= 0) {
+                state.form.error = 'Please enter a valid amount';
+                render();
+                return;
+            }
+
+            if (state.authType === 'subtract' && !state.form.reason.trim()) {
+                state.form.error = 'Please enter what this is for';
+                render();
+                return;
+            }
+
+            if (state.authType === 'add') {
+                if (state.form.code !== state.parentCode) {
+                    state.form.error = 'Incorrect parent code';
+                    render();
+                    return;
+                }
+                
+                const kidName = state.selectedKid === 1 ? state.kid1Name : state.kid2Name;
+                let newKid1Balance = state.kid1Balance;
+                let newKid2Balance = state.kid2Balance;
+                
+                if (state.selectedKid === 1) {
+                    newKid1Balance += amountNum;
+                } else {
+                    newKid2Balance += amountNum;
+                }
+                
+                const newTransaction = {
+                    type: 'add',
+                    amount: amountNum,
+                    date: new Date().toLocaleString(),
+                    by: 'Parent',
+                    kidName: kidName,
+                    kid: state.selectedKid
+                };
+                const newTransactions = [newTransaction, ...state.transactions];
+                
+                state.kid1Balance = newKid1Balance;
+                state.kid2Balance = newKid2Balance;
+                state.transactions = newTransactions;
+                await saveData(newKid1Balance, newKid2Balance, newTransactions);
+                
+            } else if (state.authType === 'subtract') {
+                // Check which kid's code was entered or parent code
+                let isParent = state.form.code === state.parentCode;
+                let isKid1 = state.form.code === state.kid1Code;
+                let isKid2 = state.form.code === state.kid2Code;
+                
+                if (!isParent && !isKid1 && !isKid2) {
+                    state.form.error = 'Incorrect code';
+                    render();
+                    return;
+                }
+                
+                // Determine which kid's balance to subtract from
+                let targetKid = state.selectedKid;
+                let targetBalance = targetKid === 1 ? state.kid1Balance : state.kid2Balance;
+                let kidName = targetKid === 1 ? state.kid1Name : state.kid2Name;
+                
+                if (amountNum > targetBalance) {
+                    state.form.error = `Not enough money in ${kidName}'s piggy bank!`;
+                    render();
+                    return;
+                }
+
+                const withdrawalData = {
+                    amount: amountNum,
+                    reason: state.form.reason,
+                    by: isParent ? 'Parent' : (isKid1 ? state.kid1Name : state.kid2Name),
+                    kidName: kidName,
+                    timestamp: Date.now()
+                };
+                localStorage.setItem('active_withdrawal', JSON.stringify(withdrawalData));
+                state.activeWithdrawal = withdrawalData;
+                render();
+
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                let newKid1Balance = state.kid1Balance;
+                let newKid2Balance = state.kid2Balance;
+                
+                if (targetKid === 1) {
+                    newKid1Balance -= amountNum;
+                } else {
+                    newKid2Balance -= amountNum;
+                }
+                
+                const newTransaction = {
+                    type: 'subtract',
+                    amount: amountNum,
+                    reason: state.form.reason,
+                    date: new Date().toLocaleString(),
+                    by: isParent ? 'Parent' : (isKid1 ? state.kid1Name : state.kid2Name),
+                    kidName: kidName,
+                    kid: targetKid
+                };
+                const newTransactions = [newTransaction, ...state.transactions];
+                
+                state.kid1Balance = newKid1Balance;
+                state.kid2Balance = newKid2Balance;
+                state.transactions = newTransactions;
+                await saveData(newKid1Balance, newKid2Balance, newTransactions);
+
+                try {
+                    localStorage.removeItem('active_withdrawal');
+                } catch (error) {}
+                state.activeWithdrawal = null;
+            }
+
+            state.showAuth = false;
+            state.form.code = '';
+            state.form.amount = '';
+            state.form.reason = '';
+            state.form.showCode = false;
+            state.authType = '';
+            state.selectedKid = null;
+            render();
+        }
+
+        function startAuth(type, kid) {
+            state.authType = type;
+            state.selectedKid = kid;
+            state.showAuth = true;
+            state.form.error = '';
+            state.form.code = '';
+            state.form.amount = '';
+            state.form.reason = '';
+            state.form.showCode = false;
+            render();
+        }
+
+        function showQuickAddModal(kid) {
+            state.selectedKid = kid;
+            state.showQuickAdd = true;
+            render();
+        }
+
+        function cancelQuickAdd() {
+            state.showQuickAdd = false;
+            state.selectedKid = null;
+            render();
+        }
+
+        async function quickAddMoney(amount) {
+            // Quick add goes straight to code verification
+            state.form.amount = amount.toString();
+            state.showQuickAdd = false;
+            state.authType = 'add';
+            state.showAuth = true;
+            render();
+        }
+
+        function cancelAuth() {
+            state.showAuth = false;
+            state.form.code = '';
+            state.form.amount = '';
+            state.form.reason = '';
+            state.form.error = '';
+            state.form.showCode = false;
+            state.selectedKid = null;
+            render();
+        }
+
+        function openChangeCode(codeType) {
+            state.showChangeCode = true;
+            state.changeCodeFor = codeType;
+            state.showSettingsMenu = false;
+            state.form.oldCode = '';
+            state.form.newCode = '';
+            state.form.confirmNewCode = '';
+            state.form.error = '';
+            state.form.showOldCode = false;
+            state.form.showNewCode = false;
+            render();
+        }
+
+        function toggleSettingsMenu() {
+            state.showSettingsMenu = !state.showSettingsMenu;
+            render();
+        }
+
+        function cancelChangeCode() {
+            state.showChangeCode = false;
+            state.changeCodeFor = '';
+            state.form.oldCode = '';
+            state.form.newCode = '';
+            state.form.confirmNewCode = '';
+            state.form.error = '';
+            state.form.showOldCode = false;
+            state.form.showNewCode = false;
+            render();
+        }
+
+        async function handleChangeCode() {
+            state.form.error = '';
+
+            if (!state.form.oldCode || !state.form.newCode || !state.form.confirmNewCode) {
+                state.form.error = 'Please fill in all fields';
+                render();
+                return;
+            }
+
+            if (state.form.newCode.length < 4) {
+                state.form.error = 'New code must be at least 4 characters';
+                render();
+                return;
+            }
+
+            if (state.form.newCode !== state.form.confirmNewCode) {
+                state.form.error = 'New codes do not match';
+                render();
+                return;
+            }
+
+            // Verify old code
+            let correctOldCode = '';
+            if (state.changeCodeFor === 'parent') {
+                correctOldCode = state.parentCode;
+            } else if (state.changeCodeFor === 'kid1') {
+                correctOldCode = state.kid1Code;
+            } else if (state.changeCodeFor === 'kid2') {
+                correctOldCode = state.kid2Code;
+            }
+
+            if (state.form.oldCode !== correctOldCode) {
+                state.form.error = 'Incorrect old code';
+                render();
+                return;
+            }
+
+            // Update the code
+            if (state.changeCodeFor === 'parent') {
+                state.parentCode = state.form.newCode;
+            } else if (state.changeCodeFor === 'kid1') {
+                state.kid1Code = state.form.newCode;
+            } else if (state.changeCodeFor === 'kid2') {
+                state.kid2Code = state.form.newCode;
+            }
+
+            // Save to storage
+            await saveCodes(state.parentCode, state.kid1Code, state.kid2Code, state.kid1Name, state.kid2Name);
+
+            // Close modal
+            state.showChangeCode = false;
+            state.changeCodeFor = '';
+            state.form.oldCode = '';
+            state.form.newCode = '';
+            state.form.confirmNewCode = '';
+            state.form.error = '';
+            render();
+        }
+
+        // Render functions
+        function renderSetupScreen() {
+            return `
+                <div class="min-h-screen bg-gradient-to-br from-pink-100 via-purple-100 to-blue-100 flex items-center justify-center p-4">
+                    <div class="bg-white rounded-3xl shadow-2xl p-8 w-full max-w-2xl">
+                        <div class="text-center mb-6">
+                            <div class="w-24 h-24 mx-auto text-pink-500 mb-4">${icons.piggyBank}</div>
+                            <h1 class="text-4xl font-bold text-gray-800 mb-2">Welcome!</h1>
+                            <p class="text-gray-600 text-lg">Let's set up your family piggy bank</p>
+                        </div>
+
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">Kid 1 Name</label>
+                                <input type="text" id="tempKid1Name" placeholder="Enter first kid's name"
+                                    class="w-full px-4 py-3 border-2 border-blue-200 rounded-xl focus:outline-none focus:border-blue-500"
+                                    value="${state.form.tempKid1Name}">
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">Kid 1 Code</label>
+                                <input type="password" id="tempKid1Code" placeholder="Enter code (min 4 characters)"
+                                    class="w-full px-4 py-3 border-2 border-blue-200 rounded-xl focus:outline-none focus:border-blue-500"
+                                    value="${state.form.tempKid1Code}">
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">Confirm Kid 1 Code</label>
+                                <input type="password" id="confirmKid1Code" placeholder="Re-enter code"
+                                    class="w-full px-4 py-3 border-2 border-blue-200 rounded-xl focus:outline-none focus:border-blue-500"
+                                    value="${state.form.confirmKid1Code}">
+                            </div>
+
+                            <div class="pt-2">
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">Kid 2 Name</label>
+                                <input type="text" id="tempKid2Name" placeholder="Enter second kid's name"
+                                    class="w-full px-4 py-3 border-2 border-green-200 rounded-xl focus:outline-none focus:border-green-500"
+                                    value="${state.form.tempKid2Name}">
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">Kid 2 Code</label>
+                                <input type="password" id="tempKid2Code" placeholder="Enter code (min 4 characters)"
+                                    class="w-full px-4 py-3 border-2 border-green-200 rounded-xl focus:outline-none focus:border-green-500"
+                                    value="${state.form.tempKid2Code}">
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">Confirm Kid 2 Code</label>
+                                <input type="password" id="confirmKid2Code" placeholder="Re-enter code"
+                                    class="w-full px-4 py-3 border-2 border-green-200 rounded-xl focus:outline-none focus:border-green-500"
+                                    value="${state.form.confirmKid2Code}">
+                            </div>
+
+                            <div class="pt-2">
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">Parent Code</label>
+                                <input type="password" id="tempParentCode" placeholder="Enter parent code (min 4 characters)"
+                                    class="w-full px-4 py-3 border-2 border-purple-200 rounded-xl focus:outline-none focus:border-purple-500"
+                                    value="${state.form.tempParentCode}">
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">Confirm Parent Code</label>
+                                <input type="password" id="confirmParentCode" placeholder="Re-enter parent code"
+                                    class="w-full px-4 py-3 border-2 border-purple-200 rounded-xl focus:outline-none focus:border-purple-500"
+                                    value="${state.form.confirmParentCode}">
+                            </div>
+
+                            ${state.form.error ? `
+                                <div class="bg-red-100 border-2 border-red-300 text-red-700 px-4 py-3 rounded-xl">
+                                    ${state.form.error}
+                                </div>
+                            ` : ''}
+
+                            <button onclick="handleSetupCodes()"
+                                class="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold py-4 rounded-xl hover:from-purple-600 hover:to-pink-600 transition-all transform hover:scale-105 shadow-lg">
+                                Set Up Piggy Bank
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderAuthModal() {
+            if (!state.showAuth) return '';
+            
+            const kidName = state.selectedKid === 1 ? state.kid1Name : state.kid2Name;
+            const kidBalance = state.selectedKid === 1 ? state.kid1Balance : state.kid2Balance;
+            
+            return `
+                <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                    <div class="bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full">
+                        <div class="flex items-center justify-between mb-6">
+                            <h2 class="text-2xl font-bold text-gray-800">
+                                ${state.authType === 'add' ? 'Add Money' : 'Take Money'}
+                            </h2>
+                            <div class="w-6 h-6 text-purple-500">${icons.lock}</div>
+                        </div>
+
+                        <div class="bg-gradient-to-r ${state.selectedKid === 1 ? 'from-blue-100 to-blue-50' : 'from-green-100 to-green-50'} p-4 rounded-xl mb-4">
+                            <p class="text-sm text-gray-600 mb-1">For: <strong>${kidName}</strong></p>
+                            <p class="text-sm text-gray-600">Current Balance: <strong>$${kidBalance.toFixed(2)}</strong></p>
+                        </div>
+
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">Amount ($)</label>
+                                <input type="number" id="amount" placeholder="0.00" step="0.01"
+                                    class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-purple-500 text-lg"
+                                    value="${state.form.amount}">
+                            </div>
+
+                            ${state.authType === 'subtract' ? `
+                                <div>
+                                    <label class="block text-sm font-semibold text-gray-700 mb-2">What is this for?</label>
+                                    <input type="text" id="reason" placeholder="e.g., Toy, candy, game"
+                                        class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-purple-500 text-lg"
+                                        value="${state.form.reason}">
+                                </div>
+                            ` : ''}
+
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">
+                                    ${state.authType === 'add' ? 'Parent Code' : 'Enter Code (Parent or Kid)'}
+                                </label>
+                                <div class="relative">
+                                    <input type="${state.form.showCode ? 'text' : 'password'}" id="code" placeholder="Enter secret code"
+                                        class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-purple-500 text-lg pr-12"
+                                        value="${state.form.code}">
+                                    <button onclick="toggleShowCode()" 
+                                        class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                                        <div class="w-5 h-5">${state.form.showCode ? icons.eyeOff : icons.eye}</div>
+                                    </button>
+                                </div>
+                            </div>
+
+                            ${state.form.error ? `
+                                <div class="bg-red-100 border-2 border-red-300 text-red-700 px-4 py-3 rounded-xl">
+                                    ${state.form.error}
+                                </div>
+                            ` : ''}
+
+                            <div class="flex gap-3 pt-2">
+                                <button onclick="cancelAuth()"
+                                    class="flex-1 bg-gray-200 text-gray-700 font-bold py-3 rounded-xl hover:bg-gray-300 transition-colors">
+                                    Cancel
+                                </button>
+                                <button onclick="handleAuthSubmit()"
+                                    class="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold py-3 rounded-xl hover:from-purple-600 hover:to-pink-600 transition-all shadow-lg">
+                                    Confirm
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderChangeCodeModal() {
+            if (!state.showChangeCode) return '';
+            
+            let title = '';
+            if (state.changeCodeFor === 'parent') {
+                title = 'Change Parent Code';
+            } else if (state.changeCodeFor === 'kid1') {
+                title = `Change ${state.kid1Name}'s Code`;
+            } else if (state.changeCodeFor === 'kid2') {
+                title = `Change ${state.kid2Name}'s Code`;
+            }
+            
+            return `
+                <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                    <div class="bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full">
+                        <div class="flex items-center justify-between mb-6">
+                            <h2 class="text-2xl font-bold text-gray-800">${title}</h2>
+                            <div class="w-6 h-6 text-purple-500">${icons.settings}</div>
+                        </div>
+
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">Current Code</label>
+                                <div class="relative">
+                                    <input type="${state.form.showOldCode ? 'text' : 'password'}" id="oldCode" placeholder="Enter current code"
+                                        class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-purple-500 text-lg pr-12"
+                                        value="${state.form.oldCode}">
+                                    <button onclick="toggleShowOldCode()" 
+                                        class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                                        <div class="w-5 h-5">${state.form.showOldCode ? icons.eyeOff : icons.eye}</div>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">New Code</label>
+                                <div class="relative">
+                                    <input type="${state.form.showNewCode ? 'text' : 'password'}" id="newCode" placeholder="Enter new code (min 4 characters)"
+                                        class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-purple-500 text-lg pr-12"
+                                        value="${state.form.newCode}">
+                                    <button onclick="toggleShowNewCode()" 
+                                        class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600">
+                                        <div class="w-5 h-5">${state.form.showNewCode ? icons.eyeOff : icons.eye}</div>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div>
+                                <label class="block text-sm font-semibold text-gray-700 mb-2">Confirm New Code</label>
+                                <input type="password" id="confirmNewCode" placeholder="Re-enter new code"
+                                    class="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:outline-none focus:border-purple-500 text-lg"
+                                    value="${state.form.confirmNewCode}">
+                            </div>
+
+                            ${state.form.error ? `
+                                <div class="bg-red-100 border-2 border-red-300 text-red-700 px-4 py-3 rounded-xl">
+                                    ${state.form.error}
+                                </div>
+                            ` : ''}
+
+                            <div class="flex gap-3 pt-2">
+                                <button onclick="cancelChangeCode()"
+                                    class="flex-1 bg-gray-200 text-gray-700 font-bold py-3 rounded-xl hover:bg-gray-300 transition-colors">
+                                    Cancel
+                                </button>
+                                <button onclick="handleChangeCode()"
+                                    class="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold py-3 rounded-xl hover:from-purple-600 hover:to-pink-600 transition-all shadow-lg">
+                                    Change Code
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderQuickAddModal() {
+            if (!state.showQuickAdd) return '';
+            
+            const kidName = state.selectedKid === 1 ? state.kid1Name : state.kid2Name;
+            
+            return `
+                <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+                    <div class="bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full">
+                        <div class="text-center mb-6">
+                            <div class="w-16 h-16 mx-auto text-green-500 mb-4">${icons.plus}</div>
+                            <h2 class="text-2xl font-bold text-gray-800 mb-2">Quick Add Money</h2>
+                            <p class="text-gray-600">For: <strong>${kidName}</strong></p>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3 mb-4">
+                            ${state.quickAddAmounts.map(amount => `
+                                <button onclick="quickAddMoney(${amount})"
+                                    class="bg-gradient-to-br from-green-400 to-emerald-500 text-white font-bold py-6 rounded-xl hover:from-green-500 hover:to-emerald-600 transition-all transform hover:scale-105 shadow-lg">
+                                    <div class="text-3xl">$${amount}</div>
+                                </button>
+                            `).join('')}
+                        </div>
+
+                        <button onclick="cancelQuickAdd()"
+                            class="w-full bg-gray-200 text-gray-700 font-bold py-3 rounded-xl hover:bg-gray-300 transition-colors">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderMainScreen() {
+            return `
+                <div class="min-h-screen px-4 pb-8">
+                    <div class="max-w-7xl mx-auto">
+                    ${state.activeWithdrawal ? `
+                        <div class="fixed top-0 left-0 right-0 bg-gradient-to-r from-orange-500 to-red-500 text-white py-4 px-6 shadow-lg z-50 animate-pulse">
+                            <div class="max-w-4xl mx-auto flex items-center justify-center gap-3">
+                                <div class="w-6 h-6">${icons.minus}</div>
+                                <div class="text-center">
+                                    <p class="font-bold text-lg">Money Being Taken Right Now!</p>
+                                    <p class="text-sm">
+                                        $${state.activeWithdrawal.amount.toFixed(2)} from ${state.activeWithdrawal.kidName}'s piggy bank for ${state.activeWithdrawal.reason} by ${state.activeWithdrawal.by}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    ` : ''}
+
+                    <div class="text-center mb-8 ${state.activeWithdrawal ? 'pt-24' : 'pt-8'} relative">
+                        <div class="absolute top-8 right-4">
+                            <button onclick="toggleSettingsMenu()" class="bg-white rounded-full p-3 shadow-lg hover:shadow-xl transition-all">
+                                <div class="w-6 h-6 text-gray-600">${icons.settings}</div>
+                            </button>
+                            ${state.showSettingsMenu ? `
+                                <div class="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-2xl overflow-hidden z-50">
+                                    <button onclick="openChangeCode('parent')" class="w-full text-left px-4 py-3 hover:bg-gray-100 transition-colors border-b border-gray-100">
+                                        <p class="font-semibold text-gray-800">Change Parent Code</p>
+                                    </button>
+                                    <button onclick="openChangeCode('kid1')" class="w-full text-left px-4 py-3 hover:bg-gray-100 transition-colors border-b border-gray-100">
+                                        <p class="font-semibold text-gray-800">Change ${state.kid1Name}'s Code</p>
+                                    </button>
+                                    <button onclick="openChangeCode('kid2')" class="w-full text-left px-4 py-3 hover:bg-gray-100 transition-colors">
+                                        <p class="font-semibold text-gray-800">Change ${state.kid2Name}'s Code</p>
+                                    </button>
+                                </div>
+                            ` : ''}
+                        </div>
+                        <div class="w-20 h-20 mx-auto text-pink-500 mb-4">${icons.piggyBank}</div>
+                        <h1 class="text-5xl font-bold text-gray-800 mb-2">Family Piggy Bank</h1>
+                        <p class="text-gray-600 text-lg">Save together, grow together!</p>
+                    </div>
+
+                    <div class="grid md:grid-cols-2 gap-8 mb-8">
+                        <!-- Kid 1 Card -->
+                        <div class="bg-white rounded-3xl shadow-2xl p-8">
+                            <div class="flex items-center justify-center gap-3 mb-6">
+                                <div class="w-12 h-12 text-blue-500">${icons.user}</div>
+                                <h2 class="text-3xl font-bold text-gray-800">${state.kid1Name}</h2>
+                            </div>
+                            <div class="text-center mb-8">
+                                <p class="text-gray-600 text-lg mb-3">Savings</p>
+                                <p class="text-7xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-cyan-600">
+                                    $${state.kid1Balance.toFixed(2)}
+                                </p>
+                            </div>
+                            <div class="space-y-3">
+                                <button onclick="showQuickAddModal(1)"
+                                    class="w-full bg-gradient-to-r from-yellow-400 to-orange-500 text-white font-bold py-5 rounded-xl hover:from-yellow-500 hover:to-orange-600 transition-all transform hover:scale-105 shadow-lg flex items-center justify-center gap-3">
+                                    <div class="w-7 h-7">⚡</div>
+                                    <span class="text-xl">Quick Add</span>
+                                </button>
+                                <div class="grid grid-cols-2 gap-4">
+                                    <button onclick="startAuth('add', 1)"
+                                        class="bg-gradient-to-br from-green-400 to-emerald-500 text-white font-bold py-6 rounded-xl hover:from-green-500 hover:to-emerald-600 transition-all transform hover:scale-105 shadow-lg flex flex-col items-center justify-center gap-2">
+                                        <div class="w-8 h-8">${icons.plus}</div>
+                                        <span class="text-lg">Add</span>
+                                    </button>
+                                    <button onclick="startAuth('subtract', 1)"
+                                        class="bg-gradient-to-br from-blue-400 to-indigo-500 text-white font-bold py-6 rounded-xl hover:from-blue-500 hover:to-indigo-600 transition-all transform hover:scale-105 shadow-lg flex flex-col items-center justify-center gap-2">
+                                        <div class="w-8 h-8">${icons.minus}</div>
+                                        <span class="text-lg">Take</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Kid 2 Card -->
+                        <div class="bg-white rounded-3xl shadow-2xl p-8">
+                            <div class="flex items-center justify-center gap-3 mb-6">
+                                <div class="w-12 h-12 text-green-500">${icons.user}</div>
+                                <h2 class="text-3xl font-bold text-gray-800">${state.kid2Name}</h2>
+                            </div>
+                            <div class="text-center mb-8">
+                                <p class="text-gray-600 text-lg mb-3">Savings</p>
+                                <p class="text-7xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-green-600 to-emerald-600">
+                                    $${state.kid2Balance.toFixed(2)}
+                                </p>
+                            </div>
+                            <div class="space-y-3">
+                                <button onclick="showQuickAddModal(2)"
+                                    class="w-full bg-gradient-to-r from-yellow-400 to-orange-500 text-white font-bold py-5 rounded-xl hover:from-yellow-500 hover:to-orange-600 transition-all transform hover:scale-105 shadow-lg flex items-center justify-center gap-3">
+                                    <div class="w-7 h-7">⚡</div>
+                                    <span class="text-xl">Quick Add</span>
+                                </button>
+                                <div class="grid grid-cols-2 gap-4">
+                                    <button onclick="startAuth('add', 2)"
+                                        class="bg-gradient-to-br from-green-400 to-emerald-500 text-white font-bold py-6 rounded-xl hover:from-green-500 hover:to-emerald-600 transition-all transform hover:scale-105 shadow-lg flex flex-col items-center justify-center gap-2">
+                                        <div class="w-8 h-8">${icons.plus}</div>
+                                        <span class="text-lg">Add</span>
+                                    </button>
+                                    <button onclick="startAuth('subtract', 2)"
+                                        class="bg-gradient-to-br from-green-400 to-teal-500 text-white font-bold py-6 rounded-xl hover:from-green-500 hover:to-teal-600 transition-all transform hover:scale-105 shadow-lg flex flex-col items-center justify-center gap-2">
+                                        <div class="w-8 h-8">${icons.minus}</div>
+                                        <span class="text-lg">Take</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-white rounded-3xl shadow-2xl p-8">
+                        <h3 class="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                            <div class="w-5 h-5 text-purple-500">${icons.wallet}</div>
+                            Recent Activity
+                        </h3>
+                        
+                        ${state.transactions.length === 0 ? `
+                            <p class="text-gray-400 text-center py-8">No transactions yet</p>
+                        ` : `
+                            <div class="space-y-3 max-h-96 overflow-y-auto">
+                                ${state.transactions.map((tx, index) => `
+                                    <div class="flex items-center justify-between p-4 rounded-xl ${tx.type === 'add' ? 'bg-green-50' : (tx.kid === 1 ? 'bg-blue-50' : 'bg-emerald-50')}">
+                                        <div class="flex items-center gap-3">
+                                            <div class="w-10 h-10 rounded-full flex items-center justify-center ${tx.type === 'add' ? 'bg-green-200' : (tx.kid === 1 ? 'bg-blue-200' : 'bg-emerald-200')}">
+                                                <div class="w-5 h-5 ${tx.type === 'add' ? 'text-green-700' : (tx.kid === 1 ? 'text-blue-700' : 'text-emerald-700')}">
+                                                    ${tx.type === 'add' ? icons.plus : icons.minus}
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <p class="font-semibold text-gray-800">
+                                                    ${tx.type === 'add' ? 'Money Added' : (tx.reason || 'Money Taken')}
+                                                </p>
+                                                <p class="text-sm text-gray-500">
+                                                    ${tx.kidName} • ${tx.date} • by ${tx.by}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <p class="text-xl font-bold ${tx.type === 'add' ? 'text-green-600' : (tx.kid === 1 ? 'text-blue-600' : 'text-emerald-600')}">
+                                            ${tx.type === 'add' ? '+' : '-'}$${tx.amount.toFixed(2)}
+                                        </p>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        `}
+                    </div>
+
+                    ${renderAuthModal()}
+                    ${renderQuickAddModal()}
+                    ${renderChangeCodeModal()}
+                </div>
+                </div>
+            `;
+        }
+
+        function render() {
+            const app = document.getElementById('app');
+            if (state.loading) {
+                app.innerHTML = `
+                    <div class="min-h-screen bg-gradient-to-br from-pink-100 via-purple-100 to-blue-100 flex items-center justify-center">
+                        <div class="text-2xl text-purple-600">Loading...</div>
+                    </div>
+                `;
+            } else if (state.setupMode) {
+                app.innerHTML = renderSetupScreen();
+                attachSetupListeners();
+            } else {
+                app.innerHTML = renderMainScreen();
+                attachMainListeners();
+            }
+        }
+
+        function attachSetupListeners() {
+            const fields = ['tempParentCode', 'confirmParentCode', 'tempKid1Code', 'confirmKid1Code', 'tempKid2Code', 'confirmKid2Code', 'tempKid1Name', 'tempKid2Name'];
+            fields.forEach(field => {
+                const el = document.getElementById(field);
+                if (el) {
+                    el.addEventListener('input', (e) => {
+                        state.form[field] = e.target.value;
+                    });
+                }
+            });
+        }
+
+        function attachMainListeners() {
+            const amount = document.getElementById('amount');
+            if (amount) {
+                amount.addEventListener('input', (e) => {
+                    state.form.amount = e.target.value;
+                });
+            }
+
+            const reason = document.getElementById('reason');
+            if (reason) {
+                reason.addEventListener('input', (e) => {
+                    state.form.reason = e.target.value;
+                });
+            }
+
+            const code = document.getElementById('code');
+            if (code) {
+                code.addEventListener('input', (e) => {
+                    state.form.code = e.target.value;
+                });
+            }
+
+            const oldCode = document.getElementById('oldCode');
+            if (oldCode) {
+                oldCode.addEventListener('input', (e) => {
+                    state.form.oldCode = e.target.value;
+                });
+            }
+
+            const newCode = document.getElementById('newCode');
+            if (newCode) {
+                newCode.addEventListener('input', (e) => {
+                    state.form.newCode = e.target.value;
+                });
+            }
+
+            const confirmNewCode = document.getElementById('confirmNewCode');
+            if (confirmNewCode) {
+                confirmNewCode.addEventListener('input', (e) => {
+                    state.form.confirmNewCode = e.target.value;
+                });
+            }
+        }
+
+        function toggleShowCode() {
+            state.form.showCode = !state.form.showCode;
+            render();
+        }
+
+        function toggleShowOldCode() {
+            state.form.showOldCode = !state.form.showOldCode;
+            render();
+        }
+
+        function toggleShowNewCode() {
+            state.form.showNewCode = !state.form.showNewCode;
+            render();
+        }
+
+        // Make functions global
+        window.handleSetupCodes = handleSetupCodes;
+        window.handleAuthSubmit = handleAuthSubmit;
+        window.startAuth = startAuth;
+        window.cancelAuth = cancelAuth;
+        window.toggleShowCode = toggleShowCode;
+        window.toggleShowOldCode = toggleShowOldCode;
+        window.toggleShowNewCode = toggleShowNewCode;
+        window.showQuickAddModal = showQuickAddModal;
+        window.cancelQuickAdd = cancelQuickAdd;
+        window.quickAddMoney = quickAddMoney;
+        window.openChangeCode = openChangeCode;
+        window.cancelChangeCode = cancelChangeCode;
+        window.handleChangeCode = handleChangeCode;
+        window.toggleSettingsMenu = toggleSettingsMenu;
+
+        // Initialize
+        loadData();
+    </script>
+</body>
+</html>
